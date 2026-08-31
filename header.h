@@ -13,16 +13,17 @@
 #ifndef HEADER_H
 #define HEADER_H
 #include <stdlib.h>
-
+#include <string.h>
 typedef struct {
     int num_coders;
-    float t_to_burnout;
-    float t_to_compile;
-    float t_to_debug;
-    float t_to_refactor;
-    float num_compile_req;
-    float dongle_cooldown;
+    int t_to_burnout;
+    int t_to_compile;
+    int t_to_debug;
+    int t_to_refactor;
+    int num_compile_req;
+    int dongle_cooldown;
     char *scheduler;
-} arguments;
+} args;
+
 
 #endif
