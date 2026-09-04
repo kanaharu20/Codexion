@@ -1,0 +1,60 @@
+#include "header.h"
+#include <stdlib.h>
+
+static int	init_one_dongle(t_dongle *d, int id)
+{
+	d->id = id;
+	d->state = D_FREE;
+	d->release_time.tv_sec = 0;
+	d->release_time.tv_usec = 0;
+	d->waiters.size = 0;
+	if (pthread_mutex_init(&d->lock, NULL) != 0)
+		return (1);
+	if (pthread_cond_init(&d->cond, NULL) != 0)
+	{
+		pthread_mutex_destroy(&d->lock);
+		return (1);
+	}
+	return (0);
+}
+
+static void	destroy_one_dongle(t_dongle *d)
+{
+	pthread_mutex_destroy(&d->lock);
+	pthread_cond_destroy(&d->cond);
+}
+
+int	init_dongles(t_shared *shared)
+{
+	int	i;
+
+	shared->dongles = malloc(sizeof(t_dongle) * shared->num_coders);
+	if (!shared->dongles)
+		return (1);
+	i = 0;
+	while (i < shared->num_coders)
+	{
+		if (init_one_dongle(&shared->dongles[i], i + 1) != 0)
+		{
+			while (--i >= 0)
+				destroy_one_dongle(&shared->dongles[i]);
+			free(shared->dongles);
+			return (1);
+		}
+		i++;
+	}
+	return (0);
+}
+
+void	destroy_dongles(t_shared *shared)
+{
+	int	i;
+
+	i = 0;
+	while (i < shared->num_coders)
+	{
+		destroy_one_dongle(&shared->dongles[i]);
+		i++;
+	}
+	free(shared->dongles);
+}

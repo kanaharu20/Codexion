@@ -13,11 +13,6 @@
 #ifndef HEADER_H
 #define HEADER_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include <limits.h>
 #include <pthread.h>
 #include <sys/time.h>
 
@@ -115,5 +110,44 @@ struct s_shared
 
     struct timeval  start_time;          /* タイムスタンプ計算の基準（シミュレーション開始=0ms） */
 };
+
+/* ---- dongle.c ---- */
+int     init_dongles(t_shared *shared);
+void    destroy_dongles(t_shared *shared);
+
+/* ---- coder.c ---- */
+int     init_coders(t_shared *shared);
+void    destroy_coders(t_shared *shared);
+
+/* ---- shared.c ---- */
+int     init_shared(t_shared *shared, args *ins);
+void    destroy_shared(t_shared *shared);
+
+/* ---- codexion.c ---- */
+int     run(args *ins);
+
+/* ---- heap.c ---- */
+void    heap_push(t_heap *h, int coder_id, long priority_key);
+int     heap_top(t_heap *h);
+void    heap_pop(t_heap *h);
+void    heap_remove(t_heap *h, int coder_id);
+
+/* ---- dongle_cooldown.c ---- */
+long            timeval_to_ms(struct timeval *tv);
+struct timespec cooldown_deadline(t_dongle *d, long cooldown_ms);
+void            refresh_dongle_state(t_dongle *d, long cooldown_ms);
+
+/* ---- dongle_acquire.c ---- */
+void    acquire_two_dongles(t_coder *coder);
+
+/* ---- dongle_release.c ---- */
+void    release_two_dongles(t_coder *coder);
+
+/* ---- log.c ---- */
+long    elapsed_ms(t_shared *shared);
+void    log_state(t_shared *shared, int coder_id, const char *msg);
+
+/* ---- coder_routine.c ---- */
+void    *coder_thread(void *arg);
 
 #endif
