@@ -25,7 +25,8 @@ static long	snapshot_priority_key(t_coder *coder)
 		return (now.tv_sec * 1000000L + now.tv_usec);
 	}
 	pthread_mutex_lock(&coder->state_lock);
-	key = timeval_to_ms(&coder->last_compile_start) + coder->shared->t_to_burnout;
+	key = timeval_to_ms(&coder->last_compile_start)
+		+ coder->shared->t_to_burnout;
 	pthread_mutex_unlock(&coder->state_lock);
 	return (key);
 }

@@ -6,7 +6,7 @@
 /*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/28 14:12:00 by hkanamit          #+#    #+#             */
-/*   Updated: 2026/08/28 14:12:27 by hkanamit         ###   ########.fr       */
+/*   Updated: 2026/09/04 14:30:31 by hkanamit         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,8 +20,8 @@ static int	spawn_coders(t_shared *shared)
 	i = 0;
 	while (i < shared->num_coders)
 	{
-		if (pthread_create(&shared->coders[i].thread, NULL,
-				coder_thread, &shared->coders[i]) != 0)
+		if (pthread_create(&shared->coders[i].thread, NULL, coder_thread,
+				&shared->coders[i]) != 0)
 		{
 			set_stopped(shared);
 			wake_all_dongles(shared);

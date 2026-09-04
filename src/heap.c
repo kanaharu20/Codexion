@@ -2,13 +2,13 @@
 
 void	heap_push(t_heap *h, int coder_id, long priority_key)
 {
+		t_request tmp;
+
 	h->entries[h->size].coder_id = coder_id;
 	h->entries[h->size].priority_key = priority_key;
 	h->size++;
 	if (h->size == 2 && h->entries[1].priority_key < h->entries[0].priority_key)
 	{
-		t_request	tmp;
-
 		tmp = h->entries[0];
 		h->entries[0] = h->entries[1];
 		h->entries[1] = tmp;

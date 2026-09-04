@@ -25,8 +25,8 @@ static int	check_one_coder(t_coder *coder)
 	pthread_mutex_lock(&coder->state_lock);
 	done = (coder->compile_count >= coder->shared->num_compile_req);
 	deadline = coder->last_compile_start.tv_sec * 1000000L
-		+ coder->last_compile_start.tv_usec
-		+ coder->shared->t_to_burnout * 1000L;
+		+ coder->last_compile_start.tv_usec + coder->shared->t_to_burnout
+		* 1000L;
 	pthread_mutex_unlock(&coder->state_lock);
 	if (done)
 		return (2);
