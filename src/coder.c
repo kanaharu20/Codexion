@@ -4,7 +4,6 @@
 static void	init_one_coder(t_coder *c, int id, t_shared *shared)
 {
 	c->id = id;
-	c->compiling = 0;
 	c->compile_count = 0;
 	c->last_compile_start = shared->start_time;
 	c->shared = shared;

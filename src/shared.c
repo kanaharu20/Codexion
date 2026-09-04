@@ -20,14 +20,8 @@ static int	init_shared_sync(t_shared *shared)
 {
 	if (pthread_mutex_init(&shared->stop_lock, NULL) != 0)
 		return (1);
-	if (pthread_cond_init(&shared->stop_cond, NULL) != 0)
-	{
-		pthread_mutex_destroy(&shared->stop_lock);
-		return (1);
-	}
 	if (pthread_mutex_init(&shared->log_lock, NULL) != 0)
 	{
-		pthread_cond_destroy(&shared->stop_cond);
 		pthread_mutex_destroy(&shared->stop_lock);
 		return (1);
 	}
@@ -37,7 +31,6 @@ static int	init_shared_sync(t_shared *shared)
 static void	destroy_shared_sync(t_shared *shared)
 {
 	pthread_mutex_destroy(&shared->log_lock);
-	pthread_cond_destroy(&shared->stop_cond);
 	pthread_mutex_destroy(&shared->stop_lock);
 }
 

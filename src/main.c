@@ -59,33 +59,35 @@ bool is_valid_schedule(const char *s)
 }
 
 
+bool parse_numbers(char **argv, args *ins)
+{
+    if (!(ori_atoi(argv[1], &ins->num_coders)
+            && ori_atoi(argv[2], &ins->t_to_burnout)
+            && ori_atoi(argv[3], &ins->t_to_compile)
+            && ori_atoi(argv[4], &ins->t_to_debug)
+            && ori_atoi(argv[5], &ins->t_to_refactor)
+            && ori_atoi(argv[6], &ins->num_compile_req)
+            && ori_atoi(argv[7], &ins->dongle_cooldown)))
+        return false;
+    if (ins->num_coders < 1)
+        return false;
+    return true;
+}
+
 int main(int argc, char **argv)
-{   
+{
+    args ins;
+
     if (argc != 9)
     {
         fprintf(stderr, "Error\n");
         return 1;
     }
-    args ins;
-    if (
-        !(ori_atoi(argv[1], &ins.num_coders)&&
-        ori_atoi(argv[2], &ins.t_to_burnout)&&
-        ori_atoi(argv[3], &ins.t_to_compile)&&
-        ori_atoi(argv[4], &ins.t_to_debug)&&
-        ori_atoi(argv[5], &ins.t_to_refactor)&&
-        ori_atoi(argv[6], &ins.num_compile_req)&&
-        ori_atoi(argv[7], &ins.dongle_cooldown)
-    ))
-    {
-        fprintf(stderr, "Error\n");
-        return 1;
-    }
-    if (is_valid_schedule(argv[8]) == 0)
+    if (!parse_numbers(argv, &ins) || !is_valid_schedule(argv[8]))
     {
         fprintf(stderr, "Error\n");
         return 1;
     }
     ins.scheduler = argv[8];
-
     return (run(&ins));
 }

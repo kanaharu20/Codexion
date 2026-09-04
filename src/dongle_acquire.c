@@ -30,31 +30,44 @@ static long	snapshot_priority_key(t_coder *coder)
 	return (key);
 }
 
-static void	acquire_one(t_dongle *d, t_coder *coder, long key)
+static void	wait_once(t_dongle *d, t_coder *coder)
 {
 	struct timespec	deadline;
 
+	if (d->state == D_COOLDOWN)
+	{
+		deadline = cooldown_deadline(d, coder->shared->dongle_cooldown);
+		pthread_cond_timedwait(&d->cond, &d->lock, &deadline);
+	}
+	else
+		pthread_cond_wait(&d->cond, &d->lock);
+	refresh_dongle_state(d, coder->shared->dongle_cooldown);
+}
+
+/* 0 = 取得できた / 1 = 停止したので諦めた */
+static int	acquire_one(t_dongle *d, t_coder *coder, long key)
+{
 	pthread_mutex_lock(&d->lock);
 	heap_push(&d->waiters, coder->id, key);
 	refresh_dongle_state(d, coder->shared->dongle_cooldown);
 	while (!(d->state == D_FREE && heap_top(&d->waiters) == coder->id))
 	{
-		if (d->state == D_COOLDOWN)
+		if (is_stopped(coder->shared))
 		{
-			deadline = cooldown_deadline(d, coder->shared->dongle_cooldown);
-			pthread_cond_timedwait(&d->cond, &d->lock, &deadline);
+			heap_remove(&d->waiters, coder->id);
+			pthread_mutex_unlock(&d->lock);
+			return (1);
 		}
-		else
-			pthread_cond_wait(&d->cond, &d->lock);
-		refresh_dongle_state(d, coder->shared->dongle_cooldown);
+		wait_once(d, coder);
 	}
 	d->state = D_TAKEN;
 	heap_pop(&d->waiters);
 	pthread_mutex_unlock(&d->lock);
 	log_state(coder->shared, coder->id, "has taken a dongle");
+	return (0);
 }
 
-void	acquire_two_dongles(t_coder *coder)
+int	acquire_two_dongles(t_coder *coder)
 {
 	t_dongle	*first;
 	t_dongle	*second;
@@ -62,7 +75,12 @@ void	acquire_two_dongles(t_coder *coder)
 
 	order_by_id(coder, &first, &second);
 	key = snapshot_priority_key(coder);
-	acquire_one(first, coder, key);
-	if (second != first)
-		acquire_one(second, coder, key);
+	if (acquire_one(first, coder, key) != 0)
+		return (1);
+	if (second != first && acquire_one(second, coder, key) != 0)
+	{
+		release_one_dongle(first);
+		return (1);
+	}
+	return (0);
 }

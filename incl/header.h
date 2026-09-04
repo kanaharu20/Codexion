@@ -82,9 +82,8 @@ typedef struct s_coder
 
     pthread_mutex_t state_lock;          /* 以下2つのフィールドを保護 */
     struct timeval  last_compile_start;  /* burnout計算の起点 */
-    int             compiling;           /* 今compile中か（monitorのburnout判定除外用） */
-
     int             compile_count;       /* number_of_compiles_required 判定用 */
+
     t_shared        *shared;             /* 共有領域への逆参照 */
 }   t_coder;
 
@@ -101,10 +100,14 @@ struct s_shared
 
     t_dongle        *dongles;            /* malloc(num_coders * sizeof(t_dongle)) */
     t_coder         *coders;             /* malloc(num_coders * sizeof(t_coder)) */
+    pthread_t       monitor;
 
-    int             stopped;             /* burnout または全員達成で1になる */
+    /*
+    ** ロック順序: d->lock / log_lock → stop_lock
+    ** stop_lock は常に最内側。逆順で取る経路を作らないこと。
+    */
+    int             stopped;             /* burnout検知で1になる */
     pthread_mutex_t stop_lock;
-    pthread_cond_t  stop_cond;
 
     pthread_mutex_t log_lock;
 
@@ -138,16 +141,26 @@ struct timespec cooldown_deadline(t_dongle *d, long cooldown_ms);
 void            refresh_dongle_state(t_dongle *d, long cooldown_ms);
 
 /* ---- dongle_acquire.c ---- */
-void    acquire_two_dongles(t_coder *coder);
+int     acquire_two_dongles(t_coder *coder);
 
 /* ---- dongle_release.c ---- */
+void    release_one_dongle(t_dongle *d);
 void    release_two_dongles(t_coder *coder);
 
 /* ---- log.c ---- */
 long    elapsed_ms(t_shared *shared);
 void    log_state(t_shared *shared, int coder_id, const char *msg);
+void    log_burnout(t_shared *shared, int coder_id);
+
+/* ---- stop.c ---- */
+int     is_stopped(t_shared *shared);
+void    set_stopped(t_shared *shared);
+void    wake_all_dongles(t_shared *shared);
 
 /* ---- coder_routine.c ---- */
 void    *coder_thread(void *arg);
+
+/* ---- monitor.c ---- */
+void    *monitor_thread(void *arg);
 
 #endif

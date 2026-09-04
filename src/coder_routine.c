@@ -5,12 +5,10 @@ static void	do_compile_phase(t_coder *coder)
 {
 	pthread_mutex_lock(&coder->state_lock);
 	gettimeofday(&coder->last_compile_start, NULL);
-	coder->compiling = 1;
 	pthread_mutex_unlock(&coder->state_lock);
 	log_state(coder->shared, coder->id, "is compiling");
 	usleep(coder->shared->t_to_compile * 1000);
 	pthread_mutex_lock(&coder->state_lock);
-	coder->compiling = 0;
 	coder->compile_count++;
 	pthread_mutex_unlock(&coder->state_lock);
 }
@@ -34,9 +32,12 @@ void	*coder_thread(void *arg)
 	coder = (t_coder *)arg;
 	while (coder->compile_count < coder->shared->num_compile_req)
 	{
-		acquire_two_dongles(coder);
+		if (acquire_two_dongles(coder) != 0)
+			break ;
 		do_compile_phase(coder);
 		release_two_dongles(coder);
+		if (is_stopped(coder->shared))
+			break ;
 		do_debug_phase(coder);
 		do_refactor_phase(coder);
 	}

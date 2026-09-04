@@ -1,6 +1,6 @@
 #include "header.h"
 
-static void	release_one(t_dongle *d)
+void	release_one_dongle(t_dongle *d)
 {
 	pthread_mutex_lock(&d->lock);
 	d->state = D_COOLDOWN;
@@ -11,7 +11,7 @@ static void	release_one(t_dongle *d)
 
 void	release_two_dongles(t_coder *coder)
 {
-	release_one(coder->left);
+	release_one_dongle(coder->left);
 	if (coder->right != coder->left)
-		release_one(coder->right);
+		release_one_dongle(coder->right);
 }

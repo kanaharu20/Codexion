@@ -23,6 +23,8 @@ static int	spawn_coders(t_shared *shared)
 		if (pthread_create(&shared->coders[i].thread, NULL,
 				coder_thread, &shared->coders[i]) != 0)
 		{
+			set_stopped(shared);
+			wake_all_dongles(shared);
 			while (--i >= 0)
 				pthread_join(shared->coders[i].thread, NULL);
 			return (1);
@@ -44,21 +46,30 @@ static void	join_coders(t_shared *shared)
 	}
 }
 
+static int	error_exit(t_shared *shared, int inited)
+{
+	if (inited)
+		destroy_shared(shared);
+	fprintf(stderr, "Error\n");
+	return (1);
+}
+
 int	run(args *ins)
 {
 	t_shared	shared;
 
 	if (init_shared(&shared, ins) != 0)
-	{
-		fprintf(stderr, "Error\n");
-		return (1);
-	}
+		return (error_exit(&shared, 0));
 	if (spawn_coders(&shared) != 0)
+		return (error_exit(&shared, 1));
+	if (pthread_create(&shared.monitor, NULL, monitor_thread, &shared) != 0)
 	{
-		destroy_shared(&shared);
-		fprintf(stderr, "Error\n");
-		return (1);
+		set_stopped(&shared);
+		wake_all_dongles(&shared);
+		join_coders(&shared);
+		return (error_exit(&shared, 1));
 	}
+	pthread_join(shared.monitor, NULL);
 	join_coders(&shared);
 	destroy_shared(&shared);
 	return (0);
