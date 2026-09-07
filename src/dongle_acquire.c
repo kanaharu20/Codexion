@@ -78,7 +78,13 @@ int	acquire_two_dongles(t_coder *coder)
 	key = snapshot_priority_key(coder);
 	if (acquire_one(first, coder, key) != 0)
 		return (1);
-	if (second != first && acquire_one(second, coder, key) != 0)
+	if (second == first)
+	{
+		wait_until_stopped(first, coder->shared);
+		release_one_dongle(first);
+		return (1);
+	}
+	if (acquire_one(second, coder, key) != 0)
 	{
 		release_one_dongle(first);
 		return (1);

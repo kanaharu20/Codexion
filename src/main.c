@@ -66,7 +66,7 @@ bool	parse_numbers(char **argv, args *ins)
 				&ins->t_to_refactor) && ori_atoi(argv[6], &ins->num_compile_req)
 			&& ori_atoi(argv[7], &ins->dongle_cooldown)))
 		return (false);
-	if (ins->num_coders < 1)
+	if (ins->num_coders < 1 || ins->num_compile_req < 1)
 		return (false);
 	return (true);
 }

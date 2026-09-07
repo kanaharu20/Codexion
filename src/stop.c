@@ -39,3 +39,17 @@ void	wake_all_dongles(t_shared *shared)
 		i++;
 	}
 }
+
+/*
+** coder が 1 人のときは left == right となり 2 本目を永久に取得できない。
+** 停止が立つまで dongle の cond で寝る。監視スレッドが burnout を検知して
+** set_stopped → wake_all_dongles する broadcast で起こされる。
+** ロック順序 d->lock → stop_lock を守っている。
+*/
+void	wait_until_stopped(t_dongle *d, t_shared *shared)
+{
+	pthread_mutex_lock(&d->lock);
+	while (!is_stopped(shared))
+		pthread_cond_wait(&d->cond, &d->lock);
+	pthread_mutex_unlock(&d->lock);
+}

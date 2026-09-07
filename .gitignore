@@ -1,3 +1,9 @@
 a.out
 obj/
 codexion
+
+# pthread学習用サンプルのビルド成果物（.c から再生成できるので追跡しない）
+docs/pthread_examples/*
+!docs/pthread_examples/*.c
+!docs/pthread_examples/*.md
+!docs/pthread_examples/Makefile

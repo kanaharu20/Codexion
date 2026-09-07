@@ -159,6 +159,7 @@ void					log_burnout(t_shared *shared, int coder_id);
 int						is_stopped(t_shared *shared);
 void					set_stopped(t_shared *shared);
 void					wake_all_dongles(t_shared *shared);
+void					wait_until_stopped(t_dongle *d, t_shared *shared);
 
 /* ---- coder_routine.c ---- */
 void					*coder_thread(void *arg);
