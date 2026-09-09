@@ -1,36 +1,37 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   monitor.c                                          :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/08/28 14:28:00 by hkanamit          #+#    #+#             */
+/*   Updated: 2026/09/09 15:40:00 by hkanamit         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "header.h"
 #include <unistd.h>
 
 /*
-** 判定はマイクロ秒で行う。ミリ秒に丸めると切り捨て分だけ
-** 期限が最大1ms早まり、burnout を過剰に検知してしまうため。
-*/
-static long	now_us(void)
-{
-	struct timeval	now;
-
-	gettimeofday(&now, NULL);
-	return (now.tv_sec * 1000000L + now.tv_usec);
-}
-
-/*
 ** 1人分の判定。0 = 生存中 / 1 = burnout / 2 = 規定回数を達成済み。
+** 判定はマイクロ秒で行う。ミリ秒に丸めると切り捨て分だけ期限が最大1ms
+** 早まり、burnout を過剰に検知してしまうため。
 ** 達成済みの coder は以後 compile を始めないので判定対象から外す。
 */
-static int	check_one_coder(t_coder *coder)
+static int	check_one_coder(t_coder *coder, long now_us)
 {
 	long	deadline;
 	int		done;
 
 	pthread_mutex_lock(&coder->state_lock);
 	done = (coder->compile_count >= coder->shared->num_compile_req);
-	deadline = coder->last_compile_start.tv_sec * 1000000L
-		+ coder->last_compile_start.tv_usec + coder->shared->t_to_burnout
-		* 1000L;
+	deadline = coder->last_compile_start_us
+		+ coder->shared->t_to_burnout * 1000L;
 	pthread_mutex_unlock(&coder->state_lock);
 	if (done)
 		return (2);
-	if (now_us() >= deadline)
+	if (now_us >= deadline)
 		return (1);
 	return (0);
 }
@@ -40,15 +41,17 @@ static int	check_one_coder(t_coder *coder)
 */
 static int	scan_coders(t_shared *shared)
 {
-	int	i;
-	int	res;
-	int	finished;
+	int		i;
+	int		res;
+	int		finished;
+	long	now;
 
 	i = 0;
 	finished = 0;
+	now = elapsed_us(shared);
 	while (i < shared->num_coders)
 	{
-		res = check_one_coder(&shared->coders[i]);
+		res = check_one_coder(&shared->coders[i], now);
 		if (res == 1)
 		{
 			set_stopped(shared);

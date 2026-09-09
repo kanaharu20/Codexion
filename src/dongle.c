@@ -1,8 +1,21 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   dongle.c                                           :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/08/28 13:55:00 by hkanamit          #+#    #+#             */
+/*   Updated: 2026/09/09 15:40:00 by hkanamit         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "header.h"
 #include <stdlib.h>
 
-static int	init_one_dongle(t_dongle *d, int id)
+static int	init_one_dongle(t_shared *shared, t_dongle *d, int id)
 {
+	d->shared = shared;
 	d->id = id;
 	d->state = D_FREE;
 	d->release_time.tv_sec = 0;
@@ -34,7 +47,7 @@ int	init_dongles(t_shared *shared)
 	i = 0;
 	while (i < shared->num_coders)
 	{
-		if (init_one_dongle(&shared->dongles[i], i + 1) != 0)
+		if (init_one_dongle(shared, &shared->dongles[i], i + 1) != 0)
 		{
 			while (--i >= 0)
 				destroy_one_dongle(&shared->dongles[i]);

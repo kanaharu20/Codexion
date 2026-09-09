@@ -1,7 +1,19 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   shared.c                                           :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/08/28 13:58:00 by hkanamit          #+#    #+#             */
+/*   Updated: 2026/09/09 15:40:00 by hkanamit         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "header.h"
 #include <string.h>
 
-static void	fill_config(t_shared *shared, args *ins)
+static void	fill_config(t_shared *shared, t_args *ins)
 {
 	shared->num_coders = ins->num_coders;
 	shared->t_to_burnout = ins->t_to_burnout;
@@ -34,7 +46,7 @@ static void	destroy_shared_sync(t_shared *shared)
 	pthread_mutex_destroy(&shared->stop_lock);
 }
 
-int	init_shared(t_shared *shared, args *ins)
+int	init_shared(t_shared *shared, t_args *ins)
 {
 	fill_config(shared, ins);
 	shared->stopped = 0;

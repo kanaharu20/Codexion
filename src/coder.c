@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   coder.c                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/08/28 14:00:00 by hkanamit          #+#    #+#             */
+/*   Updated: 2026/09/09 15:40:00 by hkanamit         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "header.h"
 #include <stdlib.h>
 
@@ -5,7 +17,8 @@ static void	init_one_coder(t_coder *c, int id, t_shared *shared)
 {
 	c->id = id;
 	c->compile_count = 0;
-	c->last_compile_start = shared->start_time;
+	c->blocked_on = NULL;
+	c->last_compile_start_us = 0;
 	c->shared = shared;
 }
 

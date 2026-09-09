@@ -53,12 +53,13 @@ bool	ori_atoi(const char *str, int *arg)
 	*arg = num;
 	return (true);
 }
+
 bool	is_valid_schedule(const char *s)
 {
 	return (strcmp(s, "fifo") == 0 || strcmp(s, "edf") == 0);
 }
 
-bool	parse_numbers(char **argv, args *ins)
+bool	parse_numbers(char **argv, t_args *ins)
 {
 	if (!(ori_atoi(argv[1], &ins->num_coders) && ori_atoi(argv[2],
 				&ins->t_to_burnout) && ori_atoi(argv[3], &ins->t_to_compile)
@@ -73,7 +74,7 @@ bool	parse_numbers(char **argv, args *ins)
 
 int	main(int argc, char **argv)
 {
-	args	ins;
+	t_args	ins;
 
 	if (argc != 9)
 	{

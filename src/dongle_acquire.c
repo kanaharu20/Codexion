@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   dongle_acquire.c                                   :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/08/28 14:20:00 by hkanamit          #+#    #+#             */
+/*   Updated: 2026/09/09 16:30:00 by hkanamit         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "header.h"
 
 static void	order_by_id(t_coder *coder, t_dongle **first, t_dongle **second)
@@ -14,39 +26,29 @@ static void	order_by_id(t_coder *coder, t_dongle **first, t_dongle **second)
 	}
 }
 
+/*
+** キーの単位は fifo / edf のどちらもシミュレーション開始からのマイクロ秒。
+** fifo は要求が到着した時刻、edf は burnout 期限をそのままキーにする。
+** 1回の要求につき1度だけ採り、2本の dongle で同じ値を使う。こうすると
+** どの dongle でも待ち行列の順序が一致する。
+*/
 static long	snapshot_priority_key(t_coder *coder)
 {
-	struct timeval	now;
-	long			key;
+	long	key;
 
 	if (coder->shared->scheduler == FIFO)
-	{
-		gettimeofday(&now, NULL);
-		return (now.tv_sec * 1000000L + now.tv_usec);
-	}
+		return (elapsed_us(coder->shared));
 	pthread_mutex_lock(&coder->state_lock);
-	key = timeval_to_ms(&coder->last_compile_start)
-		+ coder->shared->t_to_burnout;
+	key = coder->last_compile_start_us + coder->shared->t_to_burnout * 1000L;
 	pthread_mutex_unlock(&coder->state_lock);
 	return (key);
 }
 
-static void	wait_once(t_dongle *d, t_coder *coder)
-{
-	struct timespec	deadline;
-
-	if (d->state == D_COOLDOWN)
-	{
-		deadline = cooldown_deadline(d, coder->shared->dongle_cooldown);
-		pthread_cond_timedwait(&d->cond, &d->lock, &deadline);
-	}
-	else
-		pthread_cond_wait(&d->cond, &d->lock);
-	refresh_dongle_state(d, coder->shared->dongle_cooldown);
-}
-
-/* 0 = 取得できた / 1 = 停止したので諦めた */
-static int	acquire_one(t_dongle *d, t_coder *coder, long key)
+/*
+** coder が1人のときは left == right で、机の上の dongle は1本しかない。
+** 2本目は永久に揃わないので、1本を取ったまま停止を待って burnout する。
+*/
+static int	acquire_single(t_coder *coder, t_dongle *d, long key)
 {
 	pthread_mutex_lock(&d->lock);
 	heap_push(&d->waiters, coder->id, key);
@@ -59,35 +61,47 @@ static int	acquire_one(t_dongle *d, t_coder *coder, long key)
 			pthread_mutex_unlock(&d->lock);
 			return (1);
 		}
-		wait_once(d, coder);
+		wait_on_blocker(d, coder);
 	}
 	d->state = D_TAKEN;
 	heap_pop(&d->waiters);
 	pthread_mutex_unlock(&d->lock);
 	log_state(coder->shared, coder->id, "has taken a dongle");
-	return (0);
+	wait_until_stopped(d, coder->shared);
+	release_one_dongle(d);
+	return (1);
+}
+
+static int	give_up(t_coder *coder, t_dongle *f, t_dongle *s, t_dongle *held)
+{
+	pthread_mutex_unlock(&held->lock);
+	set_blocked_on(coder, NULL);
+	dequeue_both(coder, f, s);
+	return (1);
 }
 
 int	acquire_two_dongles(t_coder *coder)
 {
 	t_dongle	*first;
 	t_dongle	*second;
+	t_dongle	*blocker;
 	long		key;
 
 	order_by_id(coder, &first, &second);
 	key = snapshot_priority_key(coder);
-	if (acquire_one(first, coder, key) != 0)
-		return (1);
 	if (second == first)
+		return (acquire_single(coder, first, key));
+	enqueue_both(coder, first, second, key);
+	blocker = try_take_pair(coder, first, second);
+	while (blocker != NULL)
 	{
-		wait_until_stopped(first, coder->shared);
-		release_one_dongle(first);
-		return (1);
+		if (is_stopped(coder->shared))
+			return (give_up(coder, first, second, blocker));
+		wait_on_blocker(blocker, coder);
+		pthread_mutex_unlock(&blocker->lock);
+		blocker = try_take_pair(coder, first, second);
 	}
-	if (acquire_one(second, coder, key) != 0)
-	{
-		release_one_dongle(first);
-		return (1);
-	}
+	log_state(coder->shared, coder->id, "has taken a dongle");
+	log_state(coder->shared, coder->id, "has taken a dongle");
 	return (0);
 }

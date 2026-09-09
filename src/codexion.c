@@ -54,7 +54,7 @@ static int	error_exit(t_shared *shared, int inited)
 	return (1);
 }
 
-int	run(args *ins)
+int	run(t_args *ins)
 {
 	t_shared	shared;
 

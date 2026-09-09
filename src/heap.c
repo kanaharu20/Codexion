@@ -1,13 +1,41 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   heap.c                                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/08/28 14:15:00 by hkanamit          #+#    #+#             */
+/*   Updated: 2026/09/09 15:40:00 by hkanamit         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "header.h"
+
+/*
+** a が b より先に dongle を得るべきなら 1。
+** キーが同値のときは coder_id の小さい方を優先する。挿入順で決めると
+** スレッドのスケジュール次第で結果が変わり、edf が決定的でなくなるため。
+*/
+static int	beats(t_request *a, t_request *b)
+{
+	if (a->priority_key != b->priority_key)
+		return (a->priority_key < b->priority_key);
+	return (a->coder_id < b->coder_id);
+}
 
 void	heap_push(t_heap *h, int coder_id, long priority_key)
 {
-		t_request tmp;
+	t_request	tmp;
 
+	if (h->size >= 2)
+		return ;
+	if (h->size == 1 && h->entries[0].coder_id == coder_id)
+		return ;
 	h->entries[h->size].coder_id = coder_id;
 	h->entries[h->size].priority_key = priority_key;
 	h->size++;
-	if (h->size == 2 && h->entries[1].priority_key < h->entries[0].priority_key)
+	if (h->size == 2 && beats(&h->entries[1], &h->entries[0]))
 	{
 		tmp = h->entries[0];
 		h->entries[0] = h->entries[1];
