@@ -11,6 +11,7 @@
 - [Part 3: 条件変数](#part-3-条件変数)
 - [Part 4: 時間関連](#part-4-時間関連)
 - [Part 5: codexion での使い分け早見表](#part-5-codexion-での使い分け早見表)
+- [補足: 属性オブジェクト（attr）とは何か](#補足-属性オブジェクトattrとは何か)
 
 共通ルール: **pthread系の関数は失敗時に `-1` ではなく、エラー番号そのものを返す**（`errno` を見るのではなく戻り値を見る）。時間系（`gettimeofday`/`clock_gettime`/`usleep`）は逆に `-1` を返して `errno` をセットする。
 
@@ -28,7 +29,7 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 | 引数 | 意味 |
 |---|---|
 | `thread` | 生成したスレッドIDの書き込み先 |
-| `attr` | 属性（スタックサイズ等）。通常 `NULL` |
+| `attr` | 属性。**生成時にしか決められない設定をまとめた箱**（スタックサイズ等）。通常 `NULL`＝全部デフォルト → [補足](#補足-属性オブジェクトattrとは何か) |
 | `start_routine` | 実行する関数。**シグネチャは `void *f(void *)` 固定** |
 | `arg` | 渡す引数（1個のみ）。複数渡したいときは構造体のポインタ |
 
@@ -67,7 +68,7 @@ int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);
 ```
 
 - **メモリ確保はしない**。すでに確保済みの領域の中身をセットアップするだけ
-- `attr` は通常 `NULL`（デフォルト属性）
+- `attr` は通常 `NULL`（デフォルト属性）。中身は [補足](#補足-属性オブジェクトattrとは何か) を参照
 - 静的に1個だけなら `pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;` でも代用可
 
 **ルール**: `init` を呼ばずに `lock` してはいけない。二重 `init` もNG。`malloc` した領域なら **`free` の前に必ず `destroy`**。
@@ -315,3 +316,69 @@ POSIX.1-2008以降は非推奨（本来は `nanosleep` 推奨）だが、**こ�
     ↓
 [片付け]  mutex_destroy / cond_destroy / free
 ```
+
+---
+
+## 補足: 属性オブジェクト（attr）とは何か
+
+`pthread_create` / `pthread_mutex_init` / `pthread_cond_init` の第2引数はどれも `attr` で、
+考え方は3つとも共通している。
+
+### なぜ引数が「箱」なのか
+
+スレッド生成時に指定したい項目はスタックサイズ・スケジューリングポリシー・detach状態…と多く、
+しかも将来増える可能性がある。これを全部 `pthread_create` の引数にすると、項目が増えるたびに
+シグネチャが変わって既存バイナリが壊れる。そこで**不透明な構造体（opaque type）1個にまとめて**
+渡す設計になっている。`NULL` を渡す＝「全部デフォルトでいい」の意味。
+
+中身は直接触らず、必ず専用関数で操作する。
+
+```c
+pthread_attr_t attr;
+
+pthread_attr_init(&attr);                          // デフォルト値で初期化
+pthread_attr_setstacksize(&attr, 1024 * 1024);     // セッター
+pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+pthread_create(&tid, &attr, f, arg);
+pthread_attr_destroy(&attr);                       // create 後すぐ捨ててよい
+```
+
+**重要な性質**: `attr` は `pthread_create` の時点で内容が**コピーされる**。
+だから直後に `destroy` してよいし、逆に後から `attr` を書き換えても
+すでに走っているスレッドには影響しない。
+
+### `pthread_attr_t` の主な項目
+
+| 項目 | 意味 |
+|---|---|
+| `detachstate` | `JOINABLE`（既定）か `DETACHED`。detached だと `join` 不要／不可で、終了時に自動でリソース回収 |
+| `stacksize` | スレッドのスタックサイズ（既定は 512KB〜8MB 程度、OS依存） |
+| `guardsize` | スタックオーバーフロー検出用の番兵ページのサイズ |
+| `schedpolicy` / `schedparam` / `inheritsched` | スケジューリング方針と優先度。既定は「親スレッドから継承」 |
+| `scope` | システム全体で競合させるか（Linux/macOS では実質 SYSTEM 固定） |
+
+**分類の目安**: 「後から変更できる設定」は `attr` ではなく専用関数側にある
+（例: `pthread_detach()`、`pthread_setschedparam()`）。
+つまり **`attr` に入っているのは基本「生成時に確定させる必要があるもの」**。
+
+### mutex / 条件変数の attr
+
+- `pthread_mutexattr_t`
+  - `type`: `NORMAL`（既定）/ `ERRORCHECK`（二重lockでデッドロックせず `EDEADLK` を返す）/ `RECURSIVE`（同一スレッドの再lockを許可）
+  - `pshared`: 共有メモリ経由で**別プロセス間**でも使えるようにする
+  - `protocol`: 優先度継承（`PTHREAD_PRIO_INHERIT`）で優先度逆転を防ぐ
+- `pthread_condattr_t`
+  - `clock`: `pthread_cond_timedwait` の基準時計を `CLOCK_MONOTONIC` にする（Linuxのみ。macOS には `pthread_condattr_setclock` が無い）
+  - `pshared`: 同上
+
+デバッグ時は `PTHREAD_MUTEX_ERRORCHECK` が地味に有用（Part 2 の「同じスレッドが二重にlockすると
+デッドロック」が、ハングせずエラー戻り値になるので原因が即わかる）。
+
+### codexion での結論
+
+**`NULL` で正しい。** `attr` が必要になるのは主に以下のケースで、いずれも該当しない。
+
+- 何百〜何千スレッド作るのでスタックを小さくしたい
+- `join` しない fire-and-forget なスレッドを作りたい（`DETACHED`）
+- リアルタイム優先度を指定したい
+- プロセス間で mutex / 条件変数を共有したい
