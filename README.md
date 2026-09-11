@@ -91,9 +91,11 @@ Examples:
 ./codexion 4 410 200 100 100 10 0 edf
 ./codexion 5 610 200 200 0 10 0 fifo
 
-# not feasible: 5 coders in a ring can compile two at a time, so each coder
-# needs at least 5 * time_to_compile / 2 = 500 ms between compiles. 460 < 500,
-# so someone always burns out, whichever scheduler is used
+# not feasible: in a ring only floor(n / 2) coders can compile at once, and a
+# dongle is usable once per (time_to_compile + dongle_cooldown), so giving every
+# coder a turn takes ceil(n / floor(n / 2)) of those periods. time_to_burnout
+# must exceed that. Here it is ceil(5 / 2) * 200 = 600 ms, and 460 < 600, so
+# someone always burns out, whichever scheduler is used
 ./codexion 5 460 200 200 0 20 0 edf
 
 # one coder, one dongle: the second dongle can never be taken,
@@ -209,13 +211,40 @@ head of the queue only when **both** of these hold:
 
 1. the head is currently blocked on a *different* dongle, so it cannot use this
    one right now, and
-2. the head still has more than one full `compile + debug + refactor` cycle of
-   slack before its own burnout deadline.
+2. the head still has more slack before its own burnout deadline than the
+   pass-over would cost it.
 
 Condition 2 is what keeps the arbitration honest: as soon as a coder gets close
 to its deadline, it can no longer be passed over by anyone, and it is served
 strictly by priority. Condition 1 is what keeps the hub busy while everyone
 still has room to spare.
+
+The cost in condition 2 is computed by `pass_over_cost_us`
+(`src/coder_state.c`). Being passed over on a dongle costs the head the time
+that dongle stays out of its reach, which is the passer's compile time plus the
+mandatory cooldown that follows the release:
+
+    cost = max(t_to_compile + t_to_debug + t_to_refactor,
+               t_to_compile + dongle_cooldown)
+
+The first term is one full cycle of the head's own work, the second is how long
+the dongle itself is unavailable. Taking only the first term is not enough:
+`t_to_debug + t_to_refactor` is the head's idle time and has nothing to do with
+how long the dongle is gone. When `dongle_cooldown` exceeds it, a head can be
+passed over while holding less slack than the pass-over actually costs, and it
+never gets the dongle back in time. That failure was reproducible: at
+`5 1600 100 20 20 5 300 edf` -- a feasible parameter set -- one coder was
+starved through the entire run and burned out without ever compiling, in 14 of
+15 runs under both schedulers. Making the cost the maximum of the two terms
+brings that to 0 of 15 and leaves every `dongle_cooldown = 0` measurement in
+this file bit-for-bit unchanged, since the second term is then the smaller one.
+
+The failure was not a shortage of dongles: the same cooldown at
+`5 1300 100 20 20 5 300 edf` never starved anyone. Loosening the deadline from
+1300 to 1600 made the program worse, because a larger deadline makes condition 2
+easier to satisfy and so admits more pass-overs. A liveness failure that gets
+worse as the parameters get more generous is a flaw in the rule, not a limit of
+the resources.
 
 The rule applies under both schedulers. Under `fifo` this means a later request
 can be served before the head of the queue when the head cannot use the dongle
