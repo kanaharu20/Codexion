@@ -26,12 +26,6 @@ static void	order_by_id(t_coder *coder, t_dongle **first, t_dongle **second)
 	}
 }
 
-/*
-** キーの単位は fifo / edf のどちらもシミュレーション開始からのマイクロ秒。
-** fifo は要求が到着した時刻、edf は burnout 期限をそのままキーにする。
-** 1回の要求につき1度だけ採り、2本の dongle で同じ値を使う。こうすると
-** どの dongle でも待ち行列の順序が一致する。
-*/
 static long	snapshot_priority_key(t_coder *coder)
 {
 	long	key;
@@ -44,10 +38,6 @@ static long	snapshot_priority_key(t_coder *coder)
 	return (key);
 }
 
-/*
-** coder が1人のときは left == right で、机の上の dongle は1本しかない。
-** 2本目は永久に揃わないので、1本を取ったまま停止を待って burnout する。
-*/
 static int	acquire_single(t_coder *coder, t_dongle *d, long key)
 {
 	pthread_mutex_lock(&d->lock);
@@ -61,7 +51,7 @@ static int	acquire_single(t_coder *coder, t_dongle *d, long key)
 			pthread_mutex_unlock(&d->lock);
 			return (1);
 		}
-		wait_on_blocker(d, coder);
+		wait_on_cond(d, coder);
 	}
 	d->state = D_TAKEN;
 	heap_pop(&d->waiters);
@@ -72,9 +62,8 @@ static int	acquire_single(t_coder *coder, t_dongle *d, long key)
 	return (1);
 }
 
-static int	give_up(t_coder *coder, t_dongle *f, t_dongle *s, t_dongle *held)
+static int	give_up(t_coder *coder, t_dongle *f, t_dongle *s)
 {
-	pthread_mutex_unlock(&held->lock);
 	set_blocked_on(coder, NULL);
 	dequeue_both(coder, f, s);
 	return (1);
@@ -96,9 +85,8 @@ int	acquire_two_dongles(t_coder *coder)
 	while (blocker != NULL)
 	{
 		if (is_stopped(coder->shared))
-			return (give_up(coder, first, second, blocker));
-		wait_on_blocker(blocker, coder);
-		pthread_mutex_unlock(&blocker->lock);
+			return (give_up(coder, first, second));
+		wait_for_dongle(blocker, coder);
 		blocker = try_take_pair(coder, first, second);
 	}
 	log_state(coder->shared, coder->id, "has taken a dongle");

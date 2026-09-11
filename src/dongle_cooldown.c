@@ -39,11 +39,7 @@ void	refresh_dongle_state(t_dongle *d, long cooldown_ms)
 		d->state = D_FREE;
 }
 
-/*
-** 取れなかった dongle の cond で待つ。呼び出し時も戻り時も d->lock は保持。
-** cooldown 中はその期限まで、それ以外は release / 行列の変化まで眠る。
-*/
-void	wait_on_blocker(t_dongle *d, t_coder *coder)
+void	wait_on_cond(t_dongle *d, t_coder *coder)
 {
 	struct timespec	deadline;
 

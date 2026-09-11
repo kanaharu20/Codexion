@@ -6,12 +6,11 @@
 /*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/28 14:12:00 by hkanamit          #+#    #+#             */
-/*   Updated: 2026/09/04 14:30:31 by hkanamit         ###   ########.fr       */
+/*   Updated: 2026/09/11 16:30:00 by hkanamit         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "header.h"
-#include <stdio.h>
 
 static int	spawn_coders(t_shared *shared)
 {
@@ -23,6 +22,7 @@ static int	spawn_coders(t_shared *shared)
 		if (pthread_create(&shared->coders[i].thread, NULL, coder_thread,
 				&shared->coders[i]) != 0)
 		{
+			error_sys_id("pthread_create for coder", i + 1);
 			set_stopped(shared);
 			wake_all_dongles(shared);
 			while (--i >= 0)
@@ -46,11 +46,9 @@ static void	join_coders(t_shared *shared)
 	}
 }
 
-static int	error_exit(t_shared *shared, int inited)
+static int	destroy_and_fail(t_shared *shared)
 {
-	if (inited)
-		destroy_shared(shared);
-	fprintf(stderr, "Error\n");
+	destroy_shared(shared);
 	return (1);
 }
 
@@ -59,15 +57,16 @@ int	run(t_args *ins)
 	t_shared	shared;
 
 	if (init_shared(&shared, ins) != 0)
-		return (error_exit(&shared, 0));
+		return (1);
 	if (spawn_coders(&shared) != 0)
-		return (error_exit(&shared, 1));
+		return (destroy_and_fail(&shared));
 	if (pthread_create(&shared.monitor, NULL, monitor_thread, &shared) != 0)
 	{
+		error_sys("pthread_create for the monitor thread");
 		set_stopped(&shared);
 		wake_all_dongles(&shared);
 		join_coders(&shared);
-		return (error_exit(&shared, 1));
+		return (destroy_and_fail(&shared));
 	}
 	pthread_join(shared.monitor, NULL);
 	join_coders(&shared);

@@ -12,10 +12,6 @@
 
 #include "header.h"
 
-/*
-** 規定回数に達したかを state_lock の下で読む。compile_count は monitor も
-** 読むので、ロック無しで触る場所を作らない。
-*/
 static int	is_done(t_coder *coder)
 {
 	int	done;
@@ -53,11 +49,6 @@ static void	do_refactor_phase(t_coder *coder)
 	precise_sleep(coder->shared->t_to_refactor);
 }
 
-/*
-** 規定回数に達した時点でシミュレーションは終わりなので、最後の compile の
-** あとに debug / refactor を続けない。続けると停止条件を満たしたあとにも
-** ログが出て、終了も time_to_debug + time_to_refactor だけ遅れる。
-*/
 void	*coder_thread(void *arg)
 {
 	t_coder	*coder;

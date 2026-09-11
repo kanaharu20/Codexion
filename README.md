@@ -147,7 +147,11 @@ other two conditions.
 never takes one dongle and then blocks on the other. It locks both dongles (in
 ascending id order), and either both are available — in which case both are
 marked `D_TAKEN` in the same critical section — or neither is taken and the
-coder sleeps on the one that was missing.
+function returns the dongle that was missing, having released every lock it
+took. `acquire_two_dongles` then calls `wait_for_dongle` on that dongle and
+retries. `wait_for_dongle` re-takes that one lock, re-tests the same predicate,
+and only sleeps if it still fails, so the test and the wait sit in one critical
+section and no broadcast can slip between them.
 
 This is not only a deadlock argument, it is what makes the simulation keep up
 with its deadlines. If coders hold one dongle while waiting, every coder in the
@@ -213,7 +217,16 @@ to its deadline, it can no longer be passed over by anyone, and it is served
 strictly by priority. Condition 1 is what keeps the hub busy while everyone
 still has room to spare.
 
-`release_reservations` (`src/coder_state.c`) closes the gap between the two: the
+The rule applies under both schedulers. Under `fifo` this means a later request
+can be served before the head of the queue when the head cannot use the dongle
+at that moment; the head keeps its place in the queue and is served as soon as
+its own blocker frees. This is a deliberate choice: strict arrival order
+combined with all-or-nothing acquisition was measured to serialise the hub to
+one compiling coder at a time, and one-at-a-time acquisition (which keeps strict
+order) burns out in 12 of 20 runs at `5 700 200 100 100 10 0 edf`, a feasible
+parameter set on which this design burns out in 0 of 20.
+
+`mark_waiters_unblocked` (`src/coder_state.c`) closes the gap between the two: the
 moment a dongle is released, every coder that was waiting on it is marked as no
 longer blocked, so its claim on its *other* dongle becomes untouchable in the
 same critical section in which the dongle is freed, and not a wake-up later.
@@ -364,9 +377,10 @@ locks have been dropped.
   removal from both waiter queues happen while both `d->lock` are held, in the
   same critical section as the test that allowed them. Two coders can never both
   conclude that the same dongle is free.
-* **Spurious wakeups.** Every wait sits inside a `while` loop that re-tests the
-  full predicate, never an `if`, so a spurious or broadcast-induced wakeup simply
-  re-checks and sleeps again.
+* **Spurious wakeups.** No wait is trusted to mean the predicate now holds. A
+  wakeup only returns control to the `while` loop in `acquire_two_dongles`,
+  which calls `try_take_pair` again and re-tests everything from scratch; a
+  spurious or broadcast-induced wakeup therefore just costs one more attempt.
 * **Torn coder state.** `last_compile_start_us` and `compile_count` are written
   by the coder and read by the monitor; `blocked_on` is written by its own coder
   and read by the neighbour that wants to pass it over. All three are only ever

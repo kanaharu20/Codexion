@@ -13,11 +13,6 @@
 #include "header.h"
 #include <unistd.h>
 
-/*
-** usleep(ms * 1000) の一発待ちはスケジューラ次第で数ms単位に伸びる。
-** 締切が厳しいパラメータではその誤差がそのまま burnout につながるので、
-** 短い usleep を重ねながら経過時間を見て、期限を跨いだ時点で戻る。
-*/
 void	precise_sleep(long ms)
 {
 	struct timeval	start;

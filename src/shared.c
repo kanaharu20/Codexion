@@ -6,7 +6,7 @@
 /*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/28 13:58:00 by hkanamit          #+#    #+#             */
-/*   Updated: 2026/09/09 15:40:00 by hkanamit         ###   ########.fr       */
+/*   Updated: 2026/09/11 16:30:00 by hkanamit         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,11 +31,11 @@ static void	fill_config(t_shared *shared, t_args *ins)
 static int	init_shared_sync(t_shared *shared)
 {
 	if (pthread_mutex_init(&shared->stop_lock, NULL) != 0)
-		return (1);
+		return (error_sys("pthread_mutex_init of the stop lock"));
 	if (pthread_mutex_init(&shared->log_lock, NULL) != 0)
 	{
 		pthread_mutex_destroy(&shared->stop_lock);
-		return (1);
+		return (error_sys("pthread_mutex_init of the log lock"));
 	}
 	return (0);
 }

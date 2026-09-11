@@ -27,12 +27,6 @@ long	elapsed_ms(t_shared *shared)
 	return (elapsed_us(shared) / 1000);
 }
 
-/*
-** 停止後は状態メッセージを出さない。判定を log_lock の内側で行うことで、
-** burnout 行より後に別の行が割り込まないようにしている。
-** タイムスタンプも log_lock の内側で取る。外で取ると、時刻を読んでから
-** 出力するまでの間に他スレッドに追い越され、行が時刻順に並ばなくなる。
-*/
 void	log_state(t_shared *shared, int coder_id, const char *msg)
 {
 	long	ts;

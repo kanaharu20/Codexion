@@ -12,11 +12,6 @@
 
 #include "header.h"
 
-/*
-** a が b より先に dongle を得るべきなら 1。
-** キーが同値のときは coder_id の小さい方を優先する。挿入順で決めると
-** スレッドのスケジュール次第で結果が変わり、edf が決定的でなくなるため。
-*/
 static int	beats(t_request *a, t_request *b)
 {
 	if (a->priority_key != b->priority_key)

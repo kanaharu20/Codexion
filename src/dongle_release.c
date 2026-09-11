@@ -17,7 +17,7 @@ void	release_one_dongle(t_dongle *d)
 	pthread_mutex_lock(&d->lock);
 	d->state = D_COOLDOWN;
 	gettimeofday(&d->release_time, NULL);
-	release_reservations(d);
+	mark_waiters_unblocked(d);
 	pthread_cond_broadcast(&d->cond);
 	pthread_mutex_unlock(&d->lock);
 }

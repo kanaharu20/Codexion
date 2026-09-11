@@ -6,7 +6,7 @@
 /*   By: hkanamit <hkanamit@student.42tokyo.jp>     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/28 14:00:00 by hkanamit          #+#    #+#             */
-/*   Updated: 2026/09/09 15:40:00 by hkanamit         ###   ########.fr       */
+/*   Updated: 2026/09/11 16:30:00 by hkanamit         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,13 +45,14 @@ int	init_coders(t_shared *shared)
 	n = shared->num_coders;
 	shared->coders = malloc(sizeof(t_coder) * n);
 	if (!shared->coders)
-		return (1);
+		return (error_sys("malloc of the coder array"));
 	i = 0;
 	while (i < n)
 	{
 		init_one_coder(&shared->coders[i], i + 1, shared);
 		if (pthread_mutex_init(&shared->coders[i].state_lock, NULL) != 0)
 		{
+			error_sys_id("pthread_mutex_init for coder", i + 1);
 			while (--i >= 0)
 				pthread_mutex_destroy(&shared->coders[i].state_lock);
 			free(shared->coders);

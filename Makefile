@@ -4,8 +4,9 @@ SRC_DIR		= src
 INCL_DIR	= incl
 OBJ_DIR		= obj
 
-SRC			= main.c codexion.c dongle.c coder.c shared.c \
-			  heap.c dongle_cooldown.c dongle_acquire.c dongle_pair.c dongle_release.c \
+SRC			= main.c parse.c error.c codexion.c dongle.c coder.c shared.c \
+			  heap.c dongle_cooldown.c dongle_acquire.c dongle_pair.c \
+			  dongle_queue.c dongle_release.c \
 			  log.c coder_routine.c stop.c monitor.c timing.c coder_state.c
 OBJ			= $(addprefix $(OBJ_DIR)/, $(SRC:.c=.o))
 

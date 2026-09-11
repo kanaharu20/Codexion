@@ -13,12 +13,6 @@
 #include "header.h"
 #include <unistd.h>
 
-/*
-** 1人分の判定。0 = 生存中 / 1 = burnout / 2 = 規定回数を達成済み。
-** 判定はマイクロ秒で行う。ミリ秒に丸めると切り捨て分だけ期限が最大1ms
-** 早まり、burnout を過剰に検知してしまうため。
-** 達成済みの coder は以後 compile を始めないので判定対象から外す。
-*/
 static int	check_one_coder(t_coder *coder, long now_us)
 {
 	long	deadline;
@@ -36,9 +30,6 @@ static int	check_one_coder(t_coder *coder, long now_us)
 	return (0);
 }
 
-/*
-** 全員を1周見る。0 = 続行 / 1 = 監視終了（burnout または全員達成）。
-*/
 static int	scan_coders(t_shared *shared)
 {
 	int		i;
